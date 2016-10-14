@@ -238,8 +238,6 @@ hashroute_mt6_print(const void *ip, const struct xt_entry_target *match,
 static void
 hashroute_mt_save(const struct hashroute_cfg *cfg, const char* name, unsigned int dmask, int revision)
 {
-	fputs(" --hashroute", stdout);
-
 	if (cfg->mode & (XT_HASHROUTE_HASH_SIP | XT_HASHROUTE_HASH_SPT |
 	    XT_HASHROUTE_HASH_DIP | XT_HASHROUTE_HASH_DPT)) {
 		fputs(" --hashroute-mode", stdout);
