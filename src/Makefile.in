@@ -48,7 +48,7 @@ libxt_HASHROUTE_sh.o: libxt_hashroute.c
 %.so: %_sh.o
 	gcc -shared -o $@ $<
 
-linstall: | libxt_hashroute.so
+linstall: | libxt_hashroute.so libxt_HASHROUTE.so
 	@echo " *"
 	install -D libxt_hashroute.so $(DESTDIR)$(IPTABLES_MODULES)/libxt_hashroute.so
 	install -D libxt_HASHROUTE.so $(DESTDIR)$(IPTABLES_MODULES)/libxt_HASHROUTE.so
