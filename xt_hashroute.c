@@ -89,6 +89,7 @@ struct dsthash_ent {
 	spinlock_t lock;
 	unsigned long expires;		/* precalculated expiry time */	
 	struct net_device * dev;
+	struct ethhdr eth;
 	struct rcu_head rcu;
 };
 
@@ -538,6 +539,7 @@ hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 
 static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 	struct net_device* dev;
+	struct ethhdr* ethh;
 	
 	dev = skb->dev;
 	if(dev == NULL){
@@ -551,6 +553,11 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		}
 		dev_hold(dev);
 		ent->dev = dev;
+		
+		ethh = eth_hdr(skb);
+		if(ethh != NULL){
+			memcpy(&ent->eth, ethh, ETH_HLEN);
+		}
 	}
 }
 
@@ -934,6 +941,7 @@ hashroute_tg(struct sk_buff *skb,
 	struct dsthash_dst dst;
 	struct dst_entry* dst_route;
 	struct xt_hashroute_mtinfo *info = par->targinfo;
+	struct ethhdr* ethh;
 
 	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1) < 0){
 		printk("hotdrop\n");
@@ -964,18 +972,29 @@ hashroute_tg(struct sk_buff *skb,
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst_route);
 	
+	ethh = NULL;//eth_hdr(skb);
+	if(ethh == NULL){
+		ethh = (struct ethhdr *) skb_push(skb, ETH_HLEN);
+	}
+	//eth_header function
+    skb->protocol = ethh->h_proto = dh->eth.h_proto;
+    memcpy (ethh->h_source, dh->eth.h_dest, ETH_ALEN);
+    memcpy (ethh->h_dest, dh->eth.h_source, ETH_ALEN);
+	
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
 	
 	/* this packet should be NOTRACK'ed */
-	/*skb->nfct = &nf_ct_untracked_get()->ct_general;
+	skb->nfct = &nf_ct_untracked_get()->ct_general;
 	nf_conntrack_get(skb->nfct);
-	skb->nfctinfo = IP_CT_NEW;*/
+	skb->nfctinfo = IP_CT_NEW;
 	
 	/* OUT */
-	//skb->pkt_type = PACKET_OUTGOING;
+	skb->pkt_type = PACKET_OUTGOING;
 	
-	return NF_ACCEPT;
+	dev_queue_xmit(skb);
+	
+    return NF_STOLEN;
 	
 cont:
 	rcu_read_unlock_bh();
