@@ -767,15 +767,10 @@ static void dl_seq_print(struct dsthash_ent *ent, u_int8_t family,
 static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 			    struct seq_file *s)
 {
-	const struct xt_hashroute_htable *ht = s->private;
-
 	spin_lock(&ent->lock);
-	/* recalculate to show accurate numbers */
-	//rateinfo_recalc(ent, jiffies, ht->cfg.mode, 2);
-
 	dl_seq_print(ent, family, s);
-
 	spin_unlock(&ent->lock);
+	
 	return seq_has_overflowed(s);
 }
 
@@ -925,21 +920,12 @@ static int hashroute_tg_check(const struct xt_tgchk_param *par)
 					 info->name);
 }
 
-void dst_init2(struct dst_entry *dst, struct net_device *dev)
-{
-	dst->dev = dev;
-	dst->flags = 0;
-	dst->__use = 1;
-}
-
 static unsigned int
 hashroute_tg(struct sk_buff *skb,
 				const struct xt_action_param *par)
 {
 	struct dsthash_ent *dh;
-	int res;
 	struct dsthash_dst dst;
-	struct dst_entry* dst_route;
 	struct xt_hashroute_mtinfo *info = par->targinfo;
 	struct ethhdr* ethh;
 
