@@ -969,10 +969,6 @@ hashroute_tg(struct sk_buff *skb,
 		skb->dev = dh->dev;
 	}
 	
-	/*dst_route = dst_alloc(skb_dst(skb)->ops, dh->dev, 0, 0, 0);
-	skb_dst_drop(skb);
-	skb_dst_set(skb, dst_route);*/
-	
 	//eth_header function
 	ethh = (struct ethhdr *) skb_push(skb, ETH_HLEN);
     skb->protocol = ethh->h_proto = dh->eth.h_proto;
