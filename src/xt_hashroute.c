@@ -1,12 +1,12 @@
 /*
- *	xt_hashroute - Netfilter module to limit the number of packets per time
- *	separately for each hashbucket (sourceip/sourceport/dstip/dstport)
+ *	xt_hashroute - Netfilter module to return traffic to the originating interface & mac
+ *  based off a hash (sourceip/sourceport/dstip/dstport)
  *
- *	(C) 2003-2004 by Harald Welte <laforge@netfilter.org>
- *	(C) 2006-2012 Patrick McHardy <kaber@trash.net>
- *	Copyright © CC Computer Consultants GmbH, 2007 - 2008
+ *	(C) 2016 - : Mathew Heard, X4B
  *
- * Development of this code was funded by Astaro AG, http://www.astaro.com/
+ * Development of this code was funded by X4B DDoS Protection <https://www.x4b.net>
+ * 
+ * Code derived from xt_hashlimit.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
