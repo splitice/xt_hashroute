@@ -961,22 +961,20 @@ hashroute_tg(struct sk_buff *skb,
 		goto cont;
 	}
 	
-	if(skb->dev != NULL){
-		dev_put(skb->dev);
+	if(skb->dev != dh->dev){
+		if(skb->dev != NULL){
+			dev_put(skb->dev);
+		}
+		dev_hold(dh->dev);
+		skb->dev = dh->dev;
 	}
-	dev_hold(dh->dev);
 	
-	skb->dev = dh->dev;
-	
-	dst_route = dst_alloc(skb_dst(skb)->ops, dh->dev, 0, 0, 0);
+	/*dst_route = dst_alloc(skb_dst(skb)->ops, dh->dev, 0, 0, 0);
 	skb_dst_drop(skb);
-	skb_dst_set(skb, dst_route);
+	skb_dst_set(skb, dst_route);*/
 	
-	ethh = NULL;//eth_hdr(skb);
-	if(ethh == NULL){
-		ethh = (struct ethhdr *) skb_push(skb, ETH_HLEN);
-	}
 	//eth_header function
+	ethh = (struct ethhdr *) skb_push(skb, ETH_HLEN);
     skb->protocol = ethh->h_proto = dh->eth.h_proto;
     memcpy (ethh->h_source, dh->eth.h_dest, ETH_ALEN);
     memcpy (ethh->h_dest, dh->eth.h_source, ETH_ALEN);
