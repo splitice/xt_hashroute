@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <net/netfilter/nf_conntrack.h>
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
@@ -218,7 +219,6 @@ static inline void
 dsthash_free(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 {
 	spin_lock_bh(&ent->lock);
-	printk("dev: %d\n", ent->dev);
 	if(ent->dev != NULL){
 		dev_put(ent->dev);
 		ent->dev = NULL;
@@ -448,7 +448,7 @@ static void hashroute_ipv6_mask(__be32 *i, unsigned int p)
 static int
 hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 		   struct dsthash_dst *dst,
-		   const struct sk_buff *skb, unsigned int protoff)
+		   const struct sk_buff *skb, unsigned int protoff, int is_target)
 {
 	__be16 _ports[2], *ports;
 	u8 nexthdr;
@@ -458,10 +458,28 @@ hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 
 	switch (hinfo->family) {
 	case NFPROTO_IPV4:
-		if (hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP)
-			dst->ip.dst = maskl(ip_hdr(skb)->daddr,
+		if(is_target){
+			if(hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP){
+				dst->ip.dst = maskl(ip_hdr(skb)->saddr,
+			              hinfo->cfg.srcmask);
+			}
+			
+			if(hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP){
+				dst->ip.src = maskl(ip_hdr(skb)->daddr,
 			              hinfo->cfg.dstmask);
-		if (hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP)
+			}
+		}else{
+			if(hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP){
+				dst->ip.dst = maskl(ip_hdr(skb)->daddr,
+			              hinfo->cfg.dstmask);
+			}
+			if(hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP){
+				dst->ip.src = maskl(ip_hdr(skb)->saddr,
+			              hinfo->cfg.srcmask);
+			}
+		}
+			
+		if ((hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP && is_target) || (hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP && !is_target))
 			dst->ip.src = maskl(ip_hdr(skb)->saddr,
 			              hinfo->cfg.srcmask);
 
@@ -475,12 +493,12 @@ hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 	{
 		__be16 frag_off;
 
-		if (hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP) {
+		if ((hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP && !is_target) || (hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP && is_target)) {
 			memcpy(&dst->ip6.dst, &ipv6_hdr(skb)->daddr,
 			       sizeof(dst->ip6.dst));
 			hashroute_ipv6_mask(dst->ip6.dst, hinfo->cfg.dstmask);
 		}
-		if (hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP) {
+		if ((hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP && is_target) || (hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP && !is_target)) {
 			memcpy(&dst->ip6.src, &ipv6_hdr(skb)->saddr,
 			       sizeof(dst->ip6.src));
 			hashroute_ipv6_mask(dst->ip6.src, hinfo->cfg.srcmask);
@@ -527,7 +545,6 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		return;
 	}
 	
-	//spin_lock(&ent->lock);
 	if(ent->dev != dev){
 		if(ent->dev != NULL){
 			dev_put(ent->dev);
@@ -535,7 +552,6 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		dev_hold(dev);
 		ent->dev = dev;
 	}
-	//spin_unlock(&ent->lock);
 }
 
 static bool
@@ -548,7 +564,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	struct dsthash_dst dst;
 	bool race = false;
 
-	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff) < 0)
+	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0) < 0)
 		goto hotdrop;
 
 	rcu_read_lock_bh();
@@ -633,7 +649,7 @@ static int hashroute_mt_check(const struct xt_mtchk_param *par)
 		return -EINVAL;
 
 	return hashroute_mt_check_common(par, &info->hinfo, &info->cfg,
-					 info->name, 2);
+					 info->name, 0);
 }
 
 static void hashroute_mt_destroy(const struct xt_mtdtor_param *par)
@@ -857,6 +873,134 @@ static struct pernet_operations hashroute_net_ops = {
 	.size	= sizeof(struct hashroute_net),
 };
 
+static int hashroute_tg_check_common(const struct xt_tgchk_param *par,
+				     struct xt_hashroute_htable **hinfo,
+				     struct hashroute_cfg *cfg,
+				     const char *name)
+{
+	struct net *net = par->net;
+	int ret;
+
+	if (cfg->gc_interval == 0 || cfg->expire == 0)
+		return -EINVAL;
+	if (par->family == NFPROTO_IPV4) {
+		if (cfg->srcmask > 32 || cfg->dstmask > 32)
+			return -EINVAL;
+	} else {
+		if (cfg->srcmask > 128 || cfg->dstmask > 128)
+			return -EINVAL;
+	}
+
+	/* Check for overflow. */
+	mutex_lock(&hashroute_mutex);
+	*hinfo = htable_find_get(net, name, par->family);
+	if (*hinfo == NULL) {
+		ret = htable_create(net, cfg, name, par->family,
+				    hinfo, 0);
+		if (ret < 0) {
+			mutex_unlock(&hashroute_mutex);
+			return ret;
+		}
+	}
+	mutex_unlock(&hashroute_mutex);
+
+	return 0;
+}
+
+static int hashroute_tg_check(const struct xt_tgchk_param *par)
+{
+	struct xt_hashroute_mtinfo *info = par->targinfo;
+
+	if (info->name[sizeof(info->name) - 1] != '\0')
+		return -EINVAL;
+
+	return hashroute_tg_check_common(par, &info->hinfo, &info->cfg,
+					 info->name);
+}
+
+void dst_init2(struct dst_entry *dst, struct net_device *dev)
+{
+	dst->dev = dev;
+	dst->flags = 0;
+	dst->__use = 1;
+}
+
+static unsigned int
+hashroute_tg(struct sk_buff *skb,
+				const struct xt_action_param *par)
+{
+	struct dsthash_ent *dh;
+	int res;
+	struct dsthash_dst dst;
+	struct dst_entry* dst_route;
+	struct xt_hashroute_mtinfo *info = par->targinfo;
+
+	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1) < 0){
+		printk("hotdrop\n");
+		return NF_DROP;
+	}
+
+	rcu_read_lock_bh();
+	dh = dsthash_find(info->hinfo, &dst);
+	if (dh == NULL) {
+		printk("not found 1: DROP %d\n", dst.ip.src);
+		goto cont;
+	}
+	
+	if(dh->dev == NULL){
+		printk("not found 2: DROP\n");
+		spin_unlock(&dh->lock);
+		goto cont;
+	}
+	
+	if(skb->dev != NULL){
+		dev_put(skb->dev);
+	}
+	dev_hold(dh->dev);
+	
+	skb->dev = dh->dev;
+	
+	dst_route = dst_alloc(skb_dst(skb)->ops, dh->dev, 0, 0, 0);
+	skb_dst_drop(skb);
+	skb_dst_set(skb, dst_route);
+	
+	spin_unlock(&dh->lock);
+	rcu_read_unlock_bh();
+	
+	/* this packet should be NOTRACK'ed */
+	/*skb->nfct = &nf_ct_untracked_get()->ct_general;
+	nf_conntrack_get(skb->nfct);
+	skb->nfctinfo = IP_CT_NEW;*/
+	
+	/* OUT */
+	//skb->pkt_type = PACKET_OUTGOING;
+	
+	return NF_ACCEPT;
+	
+cont:
+	rcu_read_unlock_bh();
+	return NF_DROP;
+}
+
+static void hashroute_tg_destroy(const struct xt_tgdtor_param *par)
+{
+	const struct xt_hashroute_mtinfo *info = par->targinfo;
+
+	htable_put(info->hinfo);
+}
+
+static struct xt_target hashroute_tg_reg[] __read_mostly = {
+	{
+		.name		= "HASHROUTE",
+		.family		= NFPROTO_UNSPEC,
+		.target		= hashroute_tg,
+		.targetsize      = sizeof(struct xt_hashroute_mtinfo),
+		.checkentry     = hashroute_tg_check,
+		.destroy        = hashroute_tg_destroy,
+		.me		= THIS_MODULE,
+	}
+};
+
 static int __init hashroute_mt_init(void)
 {
 	int err;
@@ -866,6 +1010,12 @@ static int __init hashroute_mt_init(void)
 		return err;
 	err = xt_register_matches(hashroute_mt_reg,
 	      ARRAY_SIZE(hashroute_mt_reg));
+	if (err < 0)
+		goto err1;
+	
+	
+	err = xt_register_targets(hashroute_tg_reg,
+	      ARRAY_SIZE(hashroute_tg_reg));
 	if (err < 0)
 		goto err1;
 
@@ -887,9 +1037,11 @@ err1:
 
 }
 
+
 static void __exit hashroute_mt_exit(void)
 {
 	xt_unregister_matches(hashroute_mt_reg, ARRAY_SIZE(hashroute_mt_reg));
+	xt_unregister_targets(hashroute_tg_reg, ARRAY_SIZE(hashroute_tg_reg));
 	unregister_pernet_subsys(&hashroute_net_ops);
 
 	rcu_barrier_bh();

@@ -15,7 +15,7 @@ CC = gcc
 obj-m = xt_hashroute.o
 ccflags-y = @KOPTS@
 
-all: xt_hashroute.ko libxt_hashroute.so
+all: xt_hashroute.ko libxt_hashroute.so libxt_HASHROUTE.so
 
 xt_hashroute.ko: xt_hashroute.c Makefile
 	@echo Compiling for kernel $(KVERSION)
@@ -40,6 +40,10 @@ clean: mclean lclean
 
 libxt_hashroute_sh.o: libxt_hashroute.c
 	gcc -O2 -Wall -Wunused $(IPTABLES_CFLAGS) -fPIC -o $@ -c libxt_hashroute.c
+	
+libxt_HASHROUTE_sh.o: libxt_hashroute.c
+	gcc -O2 -Wall -Wunused $(IPTABLES_CFLAGS) -fPIC -o $@ -c libxt_HASHROUTE_tg.c
+
 
 %.so: %_sh.o
 	gcc -shared -o $@ $<
@@ -47,6 +51,7 @@ libxt_hashroute_sh.o: libxt_hashroute.c
 linstall: | libxt_hashroute.so
 	@echo " *"
 	install -D libxt_hashroute.so $(DESTDIR)$(IPTABLES_MODULES)/libxt_hashroute.so
+	install -D libxt_HASHROUTE.so $(DESTDIR)$(IPTABLES_MODULES)/libxt_HASHROUTE.so
 
 dinstall:
 	@echo " *"
