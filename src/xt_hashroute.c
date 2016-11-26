@@ -930,19 +930,19 @@ hashroute_tg(struct sk_buff *skb,
 	struct ethhdr* ethh;
 
 	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1) < 0){
-		printk("hotdrop\n");
+		pr_debug("hotdrop\n");
 		return NF_DROP;
 	}
 
 	rcu_read_lock_bh();
 	dh = dsthash_find(info->hinfo, &dst);
 	if (dh == NULL) {
-		printk("not found 1: DROP %d\n", dst.ip.src);
+		pr_debug("not found 1: DROP %d\n", dst.ip.src);
 		goto cont;
 	}
 	
 	if(dh->dev == NULL){
-		printk("not found 2: DROP\n");
+		pr_debug("not found 2: DROP\n");
 		spin_unlock(&dh->lock);
 		goto cont;
 	}
@@ -972,6 +972,7 @@ hashroute_tg(struct sk_buff *skb,
 	/* OUT */
 	skb->pkt_type = PACKET_OUTGOING;
 	
+	pr_debug("packet transmitted on device %s\n", skb->dev->name);
 	dev_queue_xmit(skb);
 	
     return NF_STOLEN;
