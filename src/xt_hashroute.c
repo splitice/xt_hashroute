@@ -89,7 +89,7 @@ struct dsthash_ent {
 	spinlock_t lock;
 	unsigned long expires;		/* precalculated expiry time */	
 	struct net_device * dev;
-	struct ethhdr eth;
+	char header[16];
 	struct rcu_head rcu;
 };
 
@@ -554,10 +554,7 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		dev_hold(dev);
 		ent->dev = dev;
 		
-		ethh = eth_hdr(skb);
-		if(ethh != NULL){
-			memcpy(&ent->eth, ethh, ETH_HLEN);
-		}
+		dev_parse_header(skb, ent->header);
 	}
 }
 
@@ -928,6 +925,7 @@ hashroute_tg(struct sk_buff *skb,
 	struct dsthash_dst dst;
 	struct xt_hashroute_mtinfo *info = par->targinfo;
 	struct ethhdr* ethh;
+	struct gre_base_hdr *greh;
 
 	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1) < 0){
 		pr_debug("hotdrop\n");
@@ -948,19 +946,15 @@ hashroute_tg(struct sk_buff *skb,
 	}
 	
 	if(skb->dev != dh->dev){
-		if(skb->dev != NULL){
+		if(skb->dev != NULL){//this should be set
 			dev_put(skb->dev);
 		}
 		dev_hold(dh->dev);
 		skb->dev = dh->dev;
+		
+		//TODO: there has got to be a better way
+		dev_hard_header(skb, skb->dev, nthos(skb->protocol), skb->dev->dev_addr, dh->header);
 	}
-	
-	//eth_header function
-	ethh = (struct ethhdr *) skb_push(skb, ETH_HLEN);
-    skb->protocol = ethh->h_proto = dh->eth.h_proto;
-    memcpy (ethh->h_source, dh->eth.h_dest, ETH_ALEN);
-    memcpy (ethh->h_dest, dh->eth.h_source, ETH_ALEN);
-	
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
 	
