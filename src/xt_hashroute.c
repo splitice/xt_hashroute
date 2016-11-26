@@ -979,7 +979,7 @@ hashroute_tg(struct sk_buff *skb,
 	
 cont:
 	rcu_read_unlock_bh();
-	return NF_DROP;
+	return NF_CONTINUE;
 }
 
 static void hashroute_tg_destroy(const struct xt_tgdtor_param *par)
