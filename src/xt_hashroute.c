@@ -935,7 +935,7 @@ static unsigned int
 hashroute_tg(struct sk_buff *skb,
 				const struct xt_action_param *par)
 {
-	/*struct dsthash_ent *dh;
+	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 	struct xt_hashroute_mtinfo *info = par->targinfo;
 	struct net_device * dev;
@@ -961,6 +961,7 @@ hashroute_tg(struct sk_buff *skb,
 	dev = skb->dev;
 	if(dev != dh->dev){
 		//TODO: there has got to be a better way
+		pr_debug("setting network level header proto=%d src=%08x dst=%08x", ntohs(skb->protocol), *(unsigned int*)skb->dev->dev_addr, *(unsigned int*)dh->header);
 		if(!dev_hard_header(skb, skb->dev, ntohs(skb->protocol), skb->dev->dev_addr, dh->header, skb->len)){
 			pr_debug("unable to insert hard header (Network Layer)\n");
 			spin_unlock(&dh->lock);
@@ -989,7 +990,7 @@ hashroute_tg(struct sk_buff *skb,
     return NF_STOLEN;
 	
 cont:
-	rcu_read_unlock_bh();*/
+	rcu_read_unlock_bh();
 	return NF_ACCEPT;
 }
 
