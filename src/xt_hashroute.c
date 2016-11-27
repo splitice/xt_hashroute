@@ -541,7 +541,7 @@ hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 static bool dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 	struct net_device* dev;
 	
-	dev = skb_dst(skb);
+	dev = skb->dev;
 	if(dev == NULL){
 		//Packet from nowhere?
 		return false;
@@ -956,7 +956,7 @@ hashroute_tg(struct sk_buff *skb,
 		goto cont;
 	}
 	
-	dev = skb_dev(skb);
+	dev = skb->dev;
 	if(dev != dh->dev){
 		//TODO: there has got to be a better way
 		if(!dev_hard_header(skb, skb->dev, ntohs(skb->protocol), skb->dev->dev_addr, dh->header, skb->len)){
@@ -965,7 +965,7 @@ hashroute_tg(struct sk_buff *skb,
 			goto cont;
 		}
 		
-		if(dev != NULL && !skb_dst_is_noref(skb)){//this should be set
+		if(dev != NULL){//this should be set
 			dev_put(dev);
 		}
 		dev_hold(dh->dev);
