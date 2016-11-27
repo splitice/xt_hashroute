@@ -568,7 +568,7 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		
 		if(!dev_parse_header(skb, ent->header)){
 			pr_debug("unable to parse header due to !header_ops=%d !header_ops.parse=%d",!dev->header_ops, !dev->header_ops->parse);
-			ent->dev = NULL:
+			ent->dev = NULL;
 			return;
 		}
 		ent->dev = dev;
