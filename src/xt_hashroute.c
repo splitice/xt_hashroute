@@ -540,9 +540,8 @@ hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 
 static bool dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 	struct net_device* dev;
-	struct ethhdr* ethh;
 	
-	dev = skb->dev;
+	dev = skb_dst(skb);
 	if(dev == NULL){
 		//Packet from nowhere?
 		return false;
@@ -937,6 +936,7 @@ hashroute_tg(struct sk_buff *skb,
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 	struct xt_hashroute_mtinfo *info = par->targinfo;
+	struct net_device * dev;
 
 	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1) < 0){
 		pr_debug("hotdrop\n");
@@ -956,8 +956,9 @@ hashroute_tg(struct sk_buff *skb,
 		goto cont;
 	}
 	
-	if(skb->dev != dh->dev){
-		if(skb->dev != NULL){//this should be set
+	dev = skb_dev(skb);
+	if(dev != dh->dev){
+		if(dev != NULL && !skb_dst_is_noref(skb)){//this should be set
 			dev_put(skb->dev);
 		}
 		
