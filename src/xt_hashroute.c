@@ -973,9 +973,9 @@ hashroute_tg(struct sk_buff *skb,
 		//}
 		dev = dh->dev;
 		skb->dev = dev;
-		dev_hold(dev);
-		held = true;
 	}
+		held = true;
+	dev_hold(dev);
 	
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
@@ -990,8 +990,8 @@ hashroute_tg(struct sk_buff *skb,
 	pr_debug("packet transmitting on device %s\n", skb->dev->name);
 	rc = dev_queue_xmit(skb);
 	
-	//if(held)
-	//	dev_put(dev);
+	if(held)
+		dev_put(dev);
 	
     return NF_STOLEN;
 	
