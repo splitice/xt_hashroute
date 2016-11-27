@@ -237,7 +237,7 @@ dsthash_free(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 {
 	spin_lock_bh(&ent->lock);
 	if(ent->dev != NULL){
-		dev_put(ent->dev);
+		//dev_put(ent->dev);
 		ent->dev = NULL;
 	}
 	spin_unlock_bh(&ent->lock);
