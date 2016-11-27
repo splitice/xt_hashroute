@@ -195,9 +195,8 @@ dsthash_alloc_init(struct xt_hashroute_htable *ht,
 		/* FIXME: do something. question is what.. */
 		net_err_ratelimited("max count of %u reached\n", ht->cfg.max);
 		ent = NULL;
-	} else
+	} else {
 		ent = kmem_cache_alloc(hashroute_cachep, GFP_ATOMIC);
-	if (ent) {
 		memcpy(&ent->dst, dst, sizeof(ent->dst));
 		ent->dev = NULL;
 		spin_lock_init(&ent->lock);
@@ -974,7 +973,7 @@ hashroute_tg(struct sk_buff *skb,
 		dev = dh->dev;
 		skb->dev = dev;
 	}
-		held = true;
+	held = true;
 	dev_hold(dev);
 	
 	spin_unlock(&dh->lock);
@@ -990,8 +989,8 @@ hashroute_tg(struct sk_buff *skb,
 	pr_debug("packet transmitting on device %s\n", skb->dev->name);
 	rc = dev_queue_xmit(skb);
 	
-	if(held)
-		dev_put(dev);
+	//if(held)
+	//	dev_put(dev);
 	
     return NF_STOLEN;
 	
