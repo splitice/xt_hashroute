@@ -970,7 +970,7 @@ hashroute_tg(struct sk_buff *skb,
 		if(dev != NULL){//this should be set
 			dev_put(dev);
 		}
-		dev_hold(dh->dev);
+		//dev_hold(dh->dev);
 		skb->dev = dh->dev;
 	}
 	spin_unlock(&dh->lock);
