@@ -958,10 +958,6 @@ hashroute_tg(struct sk_buff *skb,
 	
 	dev = skb_dev(skb);
 	if(dev != dh->dev){
-		if(dev != NULL && !skb_dst_is_noref(skb)){//this should be set
-			dev_put(skb->dev);
-		}
-		
 		//TODO: there has got to be a better way
 		if(!dev_hard_header(skb, skb->dev, ntohs(skb->protocol), skb->dev->dev_addr, dh->header, skb->len)){
 			pr_debug("unable to insert hard header (Network Layer)\n");
@@ -969,6 +965,9 @@ hashroute_tg(struct sk_buff *skb,
 			goto cont;
 		}
 		
+		if(dev != NULL && !skb_dst_is_noref(skb)){//this should be set
+			dev_put(dev);
+		}
 		dev_hold(dh->dev);
 		skb->dev = dh->dev;
 	}
