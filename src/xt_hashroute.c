@@ -243,7 +243,7 @@ dsthash_free(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 	}
 	spin_unlock_bh(&ent->lock);
 	
-	dsthash_free_entry_bh(ht, ent);
+	dsthash_free_entry(ht, ent);
 }
 static void htable_gc(struct work_struct *work);
 
@@ -601,9 +601,9 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	}
 	
 	if(!dh_set_value(dh, skb)) {
+		dsthash_free_entry(hinfo, dh);
 		spin_unlock(&dh->lock);
 		rcu_read_unlock_bh();
-		dsthash_free_entry_bh(hinfo, dh);
 		return true;
 	}
 	
@@ -938,7 +938,7 @@ static unsigned int
 hashroute_tg(struct sk_buff *skb,
 				const struct xt_action_param *par)
 {
-	struct dsthash_ent *dh;
+	/*struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 	struct xt_hashroute_mtinfo *info = par->targinfo;
 	struct net_device * dev;
@@ -979,12 +979,11 @@ hashroute_tg(struct sk_buff *skb,
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
 	
-	/* this packet should be NOTRACK'ed */
+	// this packet should be NOTRACK'ed
 	skb->nfct = &nf_ct_untracked_get()->ct_general;
 	nf_conntrack_get(skb->nfct);
 	skb->nfctinfo = IP_CT_NEW;
 	
-	/* OUT */
 	skb->pkt_type = PACKET_OUTGOING;
 	
 	pr_debug("packet transmitted on device %s\n", skb->dev->name);
@@ -993,7 +992,7 @@ hashroute_tg(struct sk_buff *skb,
     return NF_STOLEN;
 	
 cont:
-	rcu_read_unlock_bh();
+	rcu_read_unlock_bh();*/
 	return NF_ACCEPT;
 }
 
