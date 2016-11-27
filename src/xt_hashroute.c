@@ -168,7 +168,7 @@ dsthash_find(const struct xt_hashroute_htable *ht,
 /* allocate dsthash_ent, initialize dst, put in htable and lock it */
 static struct dsthash_ent *
 dsthash_alloc_init(struct xt_hashroute_htable *ht,
-		   const struct dsthash_dst *dst, bool *race)
+		   const struct dsthash_dst *dst)
 {
 	struct dsthash_ent *ent;
 
@@ -180,7 +180,7 @@ dsthash_alloc_init(struct xt_hashroute_htable *ht,
 	ent = dsthash_find(ht, dst);
 	if (ent != NULL) {
 		spin_unlock(&ht->lock);
-		*race = true;
+		spin_lock(&ent->lock);
 		return ent;
 	}
 
@@ -330,7 +330,7 @@ static bool select_all(const struct xt_hashroute_htable *ht,
 static bool select_gc(const struct xt_hashroute_htable *ht,
 		      const struct dsthash_ent *he)
 {
-	return time_after_eq(jiffies, he->expires);
+	return time_after_eq(jiffies, he->expires) || (he->dev != NULL && he->dev->reg_state==NETREG_UNREGISTERING);
 }
 
 static void htable_selective_cleanup(struct xt_hashroute_htable *ht,
@@ -584,7 +584,6 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 {
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
-	bool race = false;
 
 	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0) < 0)
 		goto hotdrop;
@@ -592,7 +591,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	rcu_read_lock_bh();
 	dh = dsthash_find(hinfo, &dst);
 	if (dh == NULL) {
-		dh = dsthash_alloc_init(hinfo, &dst, &race);
+		dh = dsthash_alloc_init(hinfo, &dst);
 		if (dh == NULL) {
 			rcu_read_unlock_bh();
 			goto hotdrop;
@@ -961,8 +960,8 @@ hashroute_tg(struct sk_buff *skb,
 	dev = skb->dev;
 	if(dev != dh->dev){
 		//TODO: there has got to be a better way
-		pr_debug("setting network level header proto=%d src=%08x dst=%08x", ntohs(skb->protocol), *(unsigned int*)skb->dev->dev_addr, *(unsigned int*)dh->header);
-		if(!dev_hard_header(skb, skb->dev, ntohs(skb->protocol), skb->dev->dev_addr, dh->header, skb->len)){
+		pr_debug("setting network level header proto=%d src=%08x dst=%08x", ntohs(skb->protocol), *(unsigned int*)dh->dev->dev_addr, *(unsigned int*)dh->header);
+		if(!dev_hard_header(skb, dh->dev, ntohs(skb->protocol), dh->dev->dev_addr, dh->header, skb->len)){
 			pr_debug("unable to insert hard header (Network Layer)\n");
 			spin_unlock(&dh->lock);
 			goto cont;
