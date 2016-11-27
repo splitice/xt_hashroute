@@ -217,10 +217,17 @@ static void dsthash_free_rcu(struct rcu_head *head)
 	kmem_cache_free(hashroute_cachep, ent);
 }
 
-
 static inline void
 dsthash_free_entry(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
-{	
+{
+	hlist_del_rcu(&ent->node);
+	call_rcu(&ent->rcu, dsthash_free_rcu);
+	ht->count--;
+}
+
+static inline void
+dsthash_free_entry_bh(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
+{
 	hlist_del_rcu(&ent->node);
 	call_rcu_bh(&ent->rcu, dsthash_free_rcu);
 	ht->count--;
@@ -236,7 +243,7 @@ dsthash_free(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 	}
 	spin_unlock_bh(&ent->lock);
 	
-	dsthash_free_entry(ht, ent);
+	dsthash_free_entry_bh(ht, ent);
 }
 static void htable_gc(struct work_struct *work);
 
