@@ -938,6 +938,7 @@ hashroute_tg(struct sk_buff *skb,
 	struct dsthash_dst dst;
 	struct xt_hashroute_mtinfo *info = par->targinfo;
 	struct net_device * dev;
+	int rc;
 
 	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1) < 0){
 		pr_debug("hotdrop\n");
@@ -967,12 +968,13 @@ hashroute_tg(struct sk_buff *skb,
 			goto cont;
 		}
 		
-		if(dev != NULL){//this should be set
-			dev_put(dev);
-		}
-		//dev_hold(dh->dev);
+		//if(dev != NULL){//this should be set
+		//	dev_put(dev);
+		//}
+		dev_hold(dh->dev);
 		skb->dev = dh->dev;
 	}
+	
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
 	
@@ -984,7 +986,9 @@ hashroute_tg(struct sk_buff *skb,
 	skb->pkt_type = PACKET_OUTGOING;
 	
 	pr_debug("packet transmitted on device %s\n", skb->dev->name);
-	dev_queue_xmit(skb);
+	rc = dev_queue_xmit(skb);
+	
+	dev_put(skb->dev);
 	
     return NF_STOLEN;
 	
