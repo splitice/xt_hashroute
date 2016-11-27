@@ -552,13 +552,13 @@ hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 	return 0;
 }
 
-static bool dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
+static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 	struct net_device* dev;
 	
 	dev = skb->dev;
 	if(dev == NULL){
 		//Packet from nowhere?
-		return false;
+		return;
 	}
 	
 	if(ent->dev != dev){
@@ -568,13 +568,13 @@ static bool dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		
 		if(!dev_parse_header(skb, ent->header)){
 			pr_debug("unable to parse header due to !header_ops=%d !header_ops.parse=%d",!dev->header_ops, !dev->header_ops->parse);
-			return false;
+			ent->dev = NULL:
+			return;
 		}
-		
 		ent->dev = dev;
 		dev_hold(dev);
 	}
-	return true;
+	return;
 }
 
 static bool
@@ -582,7 +582,6 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		    struct xt_hashroute_htable *hinfo,
 		    const struct hashroute_cfg *cfg)
 {
-	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 	bool race = false;
@@ -600,15 +599,13 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		}
 	}
 	
-	if(!dh_set_value(dh, skb)) {
-		dsthash_free_entry(hinfo, dh);
-		spin_unlock(&dh->lock);
-		rcu_read_unlock_bh();
-		return true;
+	dh_set_value(dh, skb);
+	if(unlikely(dh->dev == NULL)){
+		dh->expires = jiffies;
+	}else{
+		dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
 	}
 	
-	dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
-
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
 	
