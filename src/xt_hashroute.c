@@ -217,6 +217,15 @@ static void dsthash_free_rcu(struct rcu_head *head)
 	kmem_cache_free(hashroute_cachep, ent);
 }
 
+
+static inline void
+dsthash_free_entry(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
+{	
+	hlist_del_rcu(&ent->node);
+	call_rcu_bh(&ent->rcu, dsthash_free_rcu);
+	ht->count--;
+}
+
 static inline void
 dsthash_free(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 {
@@ -227,9 +236,7 @@ dsthash_free(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 	}
 	spin_unlock_bh(&ent->lock);
 	
-	hlist_del_rcu(&ent->node);
-	call_rcu_bh(&ent->rcu, dsthash_free_rcu);
-	ht->count--;
+	dsthash_free_entry(ht, ent);
 }
 static void htable_gc(struct work_struct *work);
 
@@ -572,7 +579,6 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 	bool race = false;
-	bool isset;
 
 	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0) < 0)
 		goto hotdrop;
@@ -584,29 +590,21 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		if (dh == NULL) {
 			rcu_read_unlock_bh();
 			goto hotdrop;
-		} else if (race) {
-			/* Already got an entry, update expiration timeout */
-			dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-			isset = dh_set_value(dh, skb);
-		} else {
-			dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
-			isset = dh_set_value(dh, skb);
 		}
-	} else {
-		/* update expiration timeout */
-		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-		isset = dh_set_value(dh, skb);
 	}
 	
-	if(!isset) {
-		dsthash_free(hinfo, dh);
+	if(!dh_set_value(dh, skb)) {
+		dsthash_free_entry(hinfo, dh);
+		spin_unlock(&dh->lock);
 		rcu_read_unlock_bh();
 		return true;
 	}
+	
+	dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
 
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
-	/* default match is underlimit - so over the limit, we need to invert */
+	
 	return true;
 
  hotdrop:
