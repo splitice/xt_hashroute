@@ -237,7 +237,7 @@ dsthash_free(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 {
 	spin_lock_bh(&ent->lock);
 	if(ent->dev != NULL){
-		//dev_put(ent->dev);
+		dev_put(ent->dev);
 		ent->dev = NULL;
 	}
 	spin_unlock_bh(&ent->lock);
@@ -562,7 +562,7 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 	
 	if(ent->dev != dev){
 		if(ent->dev != NULL){
-			//dev_put(ent->dev);
+			dev_put(ent->dev);
 		}
 		
 		if(!dev_parse_header(skb, ent->header)){
@@ -938,7 +938,6 @@ hashroute_tg(struct sk_buff *skb,
 	struct xt_hashroute_mtinfo *info = par->targinfo;
 	struct net_device * dev;
 	int rc;
-	bool held = false;
 
 	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1) < 0){
 		pr_debug("hotdrop\n");
@@ -960,7 +959,7 @@ hashroute_tg(struct sk_buff *skb,
 	
 	dev = skb->dev;
 	if(dev != dh->dev){
-		pr_debug("setting network level header proto=%d src=%08x dst=%08x", ntohs(skb->protocol), *(unsigned int*)dh->dev->dev_addr, *(unsigned int*)dh->header);
+		pr_debug("setting network level header proto=%04x src=%08x dst=%08x", ntohs(skb->protocol), *(unsigned int*)dh->dev->dev_addr, *(unsigned int*)dh->header);
 		if(!dev_hard_header(skb, dh->dev, ntohs(skb->protocol), dh->dev->dev_addr, dh->header, skb->len)){
 			pr_debug("unable to insert hard header (Network Layer)\n");
 			spin_unlock(&dh->lock);
@@ -973,7 +972,6 @@ hashroute_tg(struct sk_buff *skb,
 		dev = dh->dev;
 		skb->dev = dev;
 	}
-	held = true;
 	dev_hold(dev);
 	
 	spin_unlock(&dh->lock);
@@ -988,9 +986,11 @@ hashroute_tg(struct sk_buff *skb,
 	
 	pr_debug("packet transmitting on device %s\n", skb->dev->name);
 	rc = dev_queue_xmit(skb);
+	if (unlikely(res != NET_XMIT_SUCCESS)) {
+		printk_ratelimited(KERN_WARNING "dev_queue_xmit returned error: %d unable to re-route packet\n", res);
+	}
 	
-	//if(held)
-	//	dev_put(dev);
+	//dev_put(dev);
 	
     return NF_STOLEN;
 	
