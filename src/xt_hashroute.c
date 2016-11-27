@@ -966,9 +966,9 @@ hashroute_tg(struct sk_buff *skb,
 			goto cont;
 		}
 		
-		//if(dev != NULL){//this should be set
-		//	dev_put(dev);
-		//}
+		if(dev){
+			skb_put(dev);
+		}
 		dev = dh->dev;
 		skb->dev = dev;
 	}
@@ -984,11 +984,12 @@ hashroute_tg(struct sk_buff *skb,
 	
 	skb->pkt_type = PACKET_OUTGOING;
 	
-	pr_debug("packet transmitting on device %s\n", skb->dev->name);
+	pr_debug("packet transmitting on device %s ref before=%d\n", skb->dev->name, netdev_refcnt_read(skb->dev));
 	rc = dev_queue_xmit(skb);
 	if (unlikely(rc != NET_XMIT_SUCCESS)) {
-		printk_ratelimited(KERN_WARNING "dev_queue_xmit returned error: %d unable to re-route packet\n", rc);
+		printk_ratelimited(KERN_WARNING "dev_queue_xmit returned error: %d unable to re-route packet\n", r);
 	}
+	pr_debug("done transmitting packet for device %s ref before=%d\n", skb->dev, netdev_refcnt_read(dev));
 	
 	//dev_put(dev);
 	
