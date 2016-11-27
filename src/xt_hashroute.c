@@ -939,6 +939,7 @@ hashroute_tg(struct sk_buff *skb,
 	struct xt_hashroute_mtinfo *info = par->targinfo;
 	struct net_device * dev;
 	int rc;
+	bool held = false;
 
 	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1) < 0){
 		pr_debug("hotdrop\n");
@@ -960,7 +961,6 @@ hashroute_tg(struct sk_buff *skb,
 	
 	dev = skb->dev;
 	if(dev != dh->dev){
-		//TODO: there has got to be a better way
 		pr_debug("setting network level header proto=%d src=%08x dst=%08x", ntohs(skb->protocol), *(unsigned int*)dh->dev->dev_addr, *(unsigned int*)dh->header);
 		if(!dev_hard_header(skb, dh->dev, ntohs(skb->protocol), dh->dev->dev_addr, dh->header, skb->len)){
 			pr_debug("unable to insert hard header (Network Layer)\n");
@@ -971,8 +971,10 @@ hashroute_tg(struct sk_buff *skb,
 		//if(dev != NULL){//this should be set
 		//	dev_put(dev);
 		//}
-		dev_hold(dh->dev);
-		skb->dev = dh->dev;
+		dev = dh->dev;
+		skb->dev = dev;
+		dev_hold(dev);
+		held = true;
 	}
 	
 	spin_unlock(&dh->lock);
@@ -985,10 +987,11 @@ hashroute_tg(struct sk_buff *skb,
 	
 	skb->pkt_type = PACKET_OUTGOING;
 	
-	pr_debug("packet transmitted on device %s\n", skb->dev->name);
+	pr_debug("packet transmitting on device %s\n", skb->dev->name);
 	rc = dev_queue_xmit(skb);
 	
-	dev_put(skb->dev);
+	if(held)
+		dev_put(dev);
 	
     return NF_STOLEN;
 	
