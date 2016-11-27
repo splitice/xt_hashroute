@@ -562,7 +562,7 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 	
 	if(ent->dev != dev){
 		if(ent->dev != NULL){
-			dev_put(ent->dev);
+			//dev_put(ent->dev);
 		}
 		
 		if(!dev_parse_header(skb, ent->header)){
