@@ -8,7 +8,7 @@
  * 
  * Code derived from xt_hashlimit.
  */
-#define DEBUG 1
+//#define DEBUG 1
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -90,7 +90,7 @@ struct dsthash_ent {
 	spinlock_t lock;
 	unsigned long expires;		/* precalculated expiry time */	
 	struct net_device * dev;
-	char header[16];
+	char header[6];
 	struct rcu_head rcu;
 };
 
@@ -953,17 +953,14 @@ hashroute_tg(struct sk_buff *skb,
 	
 	if(dh->dev == NULL){
 		pr_debug("not found 2: DROP\n");
-		spin_unlock(&dh->lock);
-		goto cont;
+		goto cont_unlock;
 	}
 	
 	dev = skb->dev;
 	if(dev != dh->dev){
 		pr_debug("setting network level header proto=%04x src=%08x dst=%08x", ntohs(skb->protocol), *(unsigned int*)dh->dev->dev_addr, *(unsigned int*)dh->header);
-		if(!dev_hard_header(skb, dh->dev, ntohs(skb->protocol), dh->dev->dev_addr, dh->header, skb->len)){
-			pr_debug("unable to insert hard header (Network Layer)\n");
-			spin_unlock(&dh->lock);
-			goto cont;
+		if(!dev_hard_header(skb, dh->dev, ntohs(skb->protocol), dh->header, dh->dev->dev_addr, skb->len)){
+			pr_debug("unable to insert hard header (Network Layer), might be fine for certain interfaces (i.e gre)\n");
 		}
 		
 		if(dev){
@@ -982,6 +979,7 @@ hashroute_tg(struct sk_buff *skb,
 	nf_conntrack_get(skb->nfct);
 	skb->nfctinfo = IP_CT_NEW;
 	
+	skb_dst_set(skb, NULL);
 	skb->pkt_type = PACKET_OUTGOING;
 	
 	pr_debug("packet transmitting on device %s ref before=%d\n", skb->dev->name, netdev_refcnt_read(skb->dev));
@@ -989,12 +987,14 @@ hashroute_tg(struct sk_buff *skb,
 	if (unlikely(rc != NET_XMIT_SUCCESS)) {
 		printk_ratelimited(KERN_WARNING "dev_queue_xmit returned error: %d unable to re-route packet\n", rc);
 	}
-	pr_debug("done transmitting packet for device %s ref before=%d\n", dev->name, netdev_refcnt_read(dev));
 	
-	//dev_put(dev);
+	dev_put(dev);
+	pr_debug("done transmitting packet for device %s ref after=%d\n", dev->name, netdev_refcnt_read(dev));
 	
     return NF_STOLEN;
 	
+cont_unlock:
+	spin_unlock(&dh->lock);
 cont:
 	rcu_read_unlock_bh();
 	return NF_ACCEPT;
