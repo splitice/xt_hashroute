@@ -986,7 +986,7 @@ hashroute_tg(struct sk_buff *skb,
 	
 	pr_debug("packet transmitting on device %s\n", skb->dev->name);
 	rc = dev_queue_xmit(skb);
-	if (unlikely(res != NET_XMIT_SUCCESS)) {
+	if (unlikely(rc != NET_XMIT_SUCCESS)) {
 		printk_ratelimited(KERN_WARNING "dev_queue_xmit returned error: %d unable to re-route packet\n", res);
 	}
 	
