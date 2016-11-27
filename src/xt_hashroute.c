@@ -8,6 +8,7 @@
  * 
  * Code derived from xt_hashlimit.
  */
+#define DEBUG
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/spinlock.h>
