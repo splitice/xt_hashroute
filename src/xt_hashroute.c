@@ -990,8 +990,8 @@ hashroute_tg(struct sk_buff *skb,
 	pr_debug("packet transmitting on device %s\n", skb->dev->name);
 	rc = dev_queue_xmit(skb);
 	
-	if(held)
-		dev_put(dev);
+	//if(held)
+	//	dev_put(dev);
 	
     return NF_STOLEN;
 	
