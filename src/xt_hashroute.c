@@ -601,9 +601,9 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	}
 	
 	if(!dh_set_value(dh, skb)) {
-		dsthash_free_entry(hinfo, dh);
 		spin_unlock(&dh->lock);
 		rcu_read_unlock_bh();
+		dsthash_free_entry_bh(hinfo, dh);
 		return true;
 	}
 	
