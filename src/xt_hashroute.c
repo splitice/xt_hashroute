@@ -544,7 +544,7 @@ static bool dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 	dev = skb->dev;
 	if(dev == NULL){
 		//Packet from nowhere?
-		return;
+		return false;
 	}
 	
 	if(ent->dev != dev){
@@ -957,11 +957,16 @@ hashroute_tg(struct sk_buff *skb,
 		if(skb->dev != NULL){//this should be set
 			dev_put(skb->dev);
 		}
-		dev_hold(dh->dev);
-		skb->dev = dh->dev;
 		
 		//TODO: there has got to be a better way
-		dev_hard_header(skb, skb->dev, ntohs(skb->protocol), skb->dev->dev_addr, dh->header, skb->len);
+		if(!dev_hard_header(skb, skb->dev, ntohs(skb->protocol), skb->dev->dev_addr, dh->header, skb->len)){
+			pr_debug("unable to insert hard header (Network Layer)\n");
+			spin_unlock(&dh->lock);
+			goto cont;
+		}
+		
+		dev_hold(dh->dev);
+		skb->dev = dh->dev;
 	}
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
