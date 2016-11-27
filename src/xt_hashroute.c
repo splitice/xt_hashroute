@@ -552,12 +552,13 @@ static bool dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		if(ent->dev != NULL){
 			dev_put(ent->dev);
 		}
-		ent->dev = dev;
 		
 		if(!dev_parse_header(skb, ent->header)){
 			pr_debug("unable to parse header due to !header_ops=%d !header_ops.parse=%d",!dev->header_ops, !dev->header_ops->parse);
 			return false;
 		}
+		
+		ent->dev = dev;
 		dev_hold(dev);
 	}
 	return true;
@@ -597,7 +598,6 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
 		isset = dh_set_value(dh, skb);
 	}
-	spin_unlock(&dh->lock);
 	
 	if(!isset) {
 		dsthash_free(hinfo, dh);
@@ -605,6 +605,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		return true;
 	}
 
+	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
 	/* default match is underlimit - so over the limit, we need to invert */
 	return true;
