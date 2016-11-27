@@ -537,7 +537,7 @@ hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 	return 0;
 }
 
-static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
+static bool dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 	struct net_device* dev;
 	struct ethhdr* ethh;
 	
@@ -551,11 +551,14 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		if(ent->dev != NULL){
 			dev_put(ent->dev);
 		}
-		dev_hold(dev);
 		ent->dev = dev;
 		
-		dev_parse_header(skb, ent->header);
+		if(!dev_parse_header(skb, ent->header)){
+			return false;
+		}
+		dev_hold(dev);
 	}
+	return true;
 }
 
 static bool
@@ -567,6 +570,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 	bool race = false;
+	bool isset;
 
 	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0) < 0)
 		goto hotdrop;
@@ -581,15 +585,19 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		} else if (race) {
 			/* Already got an entry, update expiration timeout */
 			dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-			dh_set_value(dh, skb);
+			isset = dh_set_value(dh, skb);
 		} else {
 			dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
-			dh_set_value(dh, skb);
+			isset = dh_set_value(dh, skb);
 		}
 	} else {
 		/* update expiration timeout */
 		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-		dh_set_value(dh, skb);
+		isset = dh_set_value(dh, skb);
+	}
+	if(!isset) {
+		dsthash_free(hinfo, dh);
+		return true;
 	}
 
 	spin_unlock(&dh->lock);
@@ -953,7 +961,7 @@ hashroute_tg(struct sk_buff *skb,
 		skb->dev = dh->dev;
 		
 		//TODO: there has got to be a better way
-		dev_hard_header(skb, skb->dev, nthos(skb->protocol), skb->dev->dev_addr, dh->header);
+		dev_hard_header(skb, skb->dev, ntohs(skb->protocol), skb->dev->dev_addr, dh->header, skb->len);
 	}
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
