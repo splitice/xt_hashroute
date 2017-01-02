@@ -329,7 +329,7 @@ static bool select_all(const struct xt_hashroute_htable *ht,
 static bool select_gc(const struct xt_hashroute_htable *ht,
 		      const struct dsthash_ent *he)
 {
-	return time_after_eq(jiffies, he->expires) || (he->dev != NULL && he->dev->reg_state==NETREG_UNREGISTERING);
+	return (he->expires != 0 time_after_eq(jiffies, he->expires)) || (he->dev != NULL && he->dev->reg_state==NETREG_UNREGISTERING);
 }
 
 static void htable_selective_cleanup(struct xt_hashroute_htable *ht,
@@ -601,7 +601,11 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	if(unlikely(dh->dev == NULL)){
 		dh->expires = jiffies;
 	}else{
-		dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
+		if(hinfo->cfg.expire == 0){
+			dh->expires = 0;
+		}else{
+			dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
+		}
 	}
 	
 	spin_unlock(&dh->lock);
@@ -631,7 +635,7 @@ static int hashroute_mt_check_common(const struct xt_mtchk_param *par,
 	struct net *net = par->net;
 	int ret;
 
-	if (cfg->gc_interval == 0 || cfg->expire == 0)
+	if (cfg->gc_interval == 0)
 		return -EINVAL;
 	if (par->family == NFPROTO_IPV4) {
 		if (cfg->srcmask > 32 || cfg->dstmask > 32)
@@ -746,11 +750,17 @@ static void dl_seq_stop(struct seq_file *s, void *v)
 static void dl_seq_print(struct dsthash_ent *ent, u_int8_t family,
 			 struct seq_file *s)
 {
+	long exp;
 	if(ent->dev == NULL) return;
+	if(ent->expires == 0) {
+		exp = -1;
+	} else {
+		exp = (long)(ent->expires - jiffies)/HZ;
+	}
 	switch (family) {
 	case NFPROTO_IPV4:
 		seq_printf(s, "%ld %pI4:%u->%pI4:%u %s\n",
-			   (long)(ent->expires - jiffies)/HZ,
+			   exp
 			   &ent->dst.ip.src,
 			   ntohs(ent->dst.src_port),
 			   &ent->dst.ip.dst,
@@ -760,7 +770,7 @@ static void dl_seq_print(struct dsthash_ent *ent, u_int8_t family,
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	case NFPROTO_IPV6:
 		seq_printf(s, "%ld %pI6:%u->%pI6:%u %s\n",
-			   (long)(ent->expires - jiffies)/HZ,
+			   exp,
 			   &ent->dst.ip6.src,
 			   ntohs(ent->dst.src_port),
 			   &ent->dst.ip6.dst,
@@ -892,7 +902,7 @@ static int hashroute_tg_check_common(const struct xt_tgchk_param *par,
 	struct net *net = par->net;
 	int ret;
 
-	if (cfg->gc_interval == 0 || cfg->expire == 0)
+	if (cfg->gc_interval == 0)
 		return -EINVAL;
 	if (par->family == NFPROTO_IPV4) {
 		if (cfg->srcmask > 32 || cfg->dstmask > 32)
