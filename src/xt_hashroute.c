@@ -329,7 +329,7 @@ static bool select_all(const struct xt_hashroute_htable *ht,
 static bool select_gc(const struct xt_hashroute_htable *ht,
 		      const struct dsthash_ent *he)
 {
-	return (he->expires != 0 time_after_eq(jiffies, he->expires)) || (he->dev != NULL && he->dev->reg_state==NETREG_UNREGISTERING);
+	return (he->expires != 0 && time_after_eq(jiffies, he->expires)) || (he->dev != NULL && he->dev->reg_state==NETREG_UNREGISTERING);
 }
 
 static void htable_selective_cleanup(struct xt_hashroute_htable *ht,
