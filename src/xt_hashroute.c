@@ -90,7 +90,7 @@ struct dsthash_ent {
 	spinlock_t lock;
 	unsigned long expires;		/* precalculated expiry time */	
 	struct net_device * dev;
-	char header[6];
+	char header[8];
 	struct rcu_head rcu;
 };
 
@@ -560,6 +560,11 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		return;
 	}
 	
+	if(unlikely(dev->hard_header_len > sizeof(ent->header))){
+		pr_warn("link layer header too big\n");
+		return;
+	}
+		
 	if(ent->dev != dev){
 		if(ent->dev != NULL){
 			dev_put(ent->dev);
