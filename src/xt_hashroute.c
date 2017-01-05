@@ -584,16 +584,18 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 
-	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0) < 0)
-		goto hotdrop;
+	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0) < 0){
+		par->hotdrop = true;
+		return true;
+	}
 
 	rcu_read_lock_bh();
 	dh = dsthash_find(hinfo, &dst);
 	if (dh == NULL) {
 		dh = dsthash_alloc_init(hinfo, &dst);
-		if (dh == NULL) {
-			rcu_read_unlock_bh();
-			goto hotdrop;
+		if (unlikely(dh == NULL)) {
+			par->hotdrop = true;
+			goto ret;
 		}
 	}
 	
@@ -609,12 +611,9 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	}
 	
 	spin_unlock(&dh->lock);
-	rcu_read_unlock_bh();
 	
-	return true;
-
- hotdrop:
-	par->hotdrop = true;
+ret:
+	rcu_read_unlock_bh();
 	return true;
 }
 
@@ -649,16 +648,14 @@ static int hashroute_mt_check_common(const struct xt_mtchk_param *par,
 	mutex_lock(&hashroute_mutex);
 	*hinfo = htable_find_get(net, name, par->family);
 	if (*hinfo == NULL) {
-		ret = htable_create(net, cfg, name, par->family,
-				    hinfo, revision);
-		if (ret < 0) {
-			mutex_unlock(&hashroute_mutex);
-			return ret;
+		ret = htable_create(net, cfg, name, par->family, hinfo, revision);
+		if (ret >= 0) {
+			ret = 0;
 		}
 	}
+	
 	mutex_unlock(&hashroute_mutex);
-
-	return 0;
+	return ret;
 }
 
 static int hashroute_mt_check(const struct xt_mtchk_param *par)
@@ -918,14 +915,14 @@ static int hashroute_tg_check_common(const struct xt_tgchk_param *par,
 	if (*hinfo == NULL) {
 		ret = htable_create(net, cfg, name, par->family,
 				    hinfo, 0);
-		if (ret < 0) {
-			mutex_unlock(&hashroute_mutex);
-			return ret;
+		if (ret >= 0) {
+			ret = 0;
 		}
 	}
+	
 	mutex_unlock(&hashroute_mutex);
 
-	return 0;
+	return ret;
 }
 
 static int hashroute_tg_check(const struct xt_tgchk_param *par)
