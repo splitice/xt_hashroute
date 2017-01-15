@@ -570,8 +570,8 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 			dev_put(ent->dev);
 		}
 		
-		if(!dev_parse_header(skb, ent->header)){
-			pr_debug("unable to parse header due to !header_ops=%d",!dev->header_ops);
+		if(unlikely(!dev_parse_header(skb, ent->header))){
+			pr_warn("unable to parse header due. !header_ops=%d",!dev->header_ops);
 			ent->dev = NULL;
 			return;
 		}
@@ -599,6 +599,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	if (dh == NULL) {
 		dh = dsthash_alloc_init(hinfo, &dst);
 		if (unlikely(dh == NULL)) {
+			pr_warn("hash collision or race");
 			par->hotdrop = true;
 			goto ret;
 		}
