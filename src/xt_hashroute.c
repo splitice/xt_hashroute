@@ -560,7 +560,7 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 		return;
 	}
 	
-	if(unlikely(dev->hard_header_len > sizeof(ent->header))){
+	if(unlikely(dev->addr_len > sizeof(ent->header))){
 		pr_warn("link layer header too big\n");
 		return;
 	}
@@ -591,7 +591,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 
 	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0) < 0){
 		par->hotdrop = true;
-		return true;
+		return false;
 	}
 
 	rcu_read_lock_bh();
