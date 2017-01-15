@@ -556,7 +556,7 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 	
 	dev = skb->dev;
 	if(dev == NULL){
-		//Packet from nowhere?
+		pr_warn("skb dev null\n");
 		return;
 	}
 	
