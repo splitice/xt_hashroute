@@ -638,7 +638,7 @@ static int hashroute_mt_check_common(const struct xt_mtchk_param *par,
 				     const char *name, int revision)
 {
 	struct net *net = par->net;
-	int ret;
+	int ret = 0;
 
 	if (cfg->gc_interval == 0)
 		return -EINVAL;
@@ -903,7 +903,7 @@ static int hashroute_tg_check_common(const struct xt_tgchk_param *par,
 				     const char *name)
 {
 	struct net *net = par->net;
-	int ret;
+	int ret = 0;
 
 	if (cfg->gc_interval == 0)
 		return -EINVAL;
