@@ -53,7 +53,7 @@ struct hashroute_net {
 	struct proc_dir_entry	*ip6t_hashroute;
 };
 
-static int hashroute_net_id;
+static unsigned int hashroute_net_id;
 static inline struct hashroute_net *hashroute_pernet(struct net *net)
 {
 	return net_generic(net, hashroute_net_id);
@@ -570,11 +570,7 @@ static void dh_set_value(struct dsthash_ent *ent, const struct sk_buff *skb){
 			dev_put(ent->dev);
 		}
 		
-		if(unlikely(!dev_parse_header(skb, ent->header))){
-			pr_warn("unable to parse header due. !header_ops=%d",!dev->header_ops);
-			ent->dev = NULL;
-			return;
-		}
+		dev_parse_header(skb, ent->header);
 		ent->dev = dev;
 		dev_hold(dev);
 	}
@@ -763,7 +759,7 @@ static void dl_seq_print(struct dsthash_ent *ent, u_int8_t family,
 	switch (family) {
 	case NFPROTO_IPV4:
 		seq_printf(s, "%ld %pI4:%u->%pI4:%u %s\n",
-			   exp
+			   exp,
 			   &ent->dst.ip.src,
 			   ntohs(ent->dst.src_port),
 			   &ent->dst.ip.dst,
@@ -981,8 +977,8 @@ hashroute_tg(struct sk_buff *skb,
 		}
 		dev = dh->dev;
 		skb->dev = dev;
+		dev_hold(dev);
 	}
-	dev_hold(dev);
 	
 	spin_unlock(&dh->lock);
 	rcu_read_unlock_bh();
