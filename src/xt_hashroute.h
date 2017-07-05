@@ -16,6 +16,7 @@ enum {
 	XT_HASHROUTE_HASH_SIP = 1 << 2,
 	XT_HASHROUTE_HASH_SPT = 1 << 3,
 	XT_HASHROUTE_INVERT   = 1 << 4,
+	XT_HASHROUTE_MATCH_ONLY   = 1 << 5,
 };
 
 struct hashroute_cfg  {

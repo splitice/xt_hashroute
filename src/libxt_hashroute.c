@@ -45,6 +45,7 @@ enum {
 	O_HTABLE_MAX,
 	O_HTABLE_GCINT,
 	O_HTABLE_EXPIRE,
+	O_MATCH_ONLY,
 	F_HTABLE_EXPIRE = 1 << O_HTABLE_EXPIRE,
 };
 
@@ -54,6 +55,7 @@ static void hashroute_mt_help(void)
 "hashroute match options:\n"
 "  --hashroute-mode <mode>          mode is a comma-separated list of\n"
 "                                   dstip,srcip,dstport,srcport (or none)\n"
+"  --hashroute-match-only           don't create, only match\n"
 "  --hashroute-srcmask <length>     source address grouping prefix length\n"
 "  --hashroute-dstmask <length>     destination address grouping prefix length\n"
 "  --hashroute-name <name>          name for /proc/net/ipt_hashroute\n"
@@ -81,6 +83,7 @@ static const struct xt_option_entry hashroute_mt_opts[] = {
 	 .type = XTTYPE_UINT32, .flags = XTOPT_PUT,
 	 XTOPT_POINTER(s, cfg.expire)},
 	{.name = "hashroute-mode", .id = O_MODE, .type = XTTYPE_STRING},
+	{.name = "hashroute-match-only", .id = O_MATCH_ONLY, .type = XTTYPE_NONE},
 	{.name = "hashroute-name", .id = O_NAME, .type = XTTYPE_STRING,
 	 .flags = XTOPT_MAND | XTOPT_PUT, XTOPT_POINTER(s, name), .min = 1},
 	XTOPT_TABLEEND,
@@ -146,6 +149,9 @@ static void hashroute_mt_parse(struct xt_option_call *cb)
 		if (parse_mode(&info->cfg.mode, cb->arg) < 0)
 			xtables_param_act(XTF_BAD_VALUE, "hashroute",
 			          "--hashroute-mode", cb->arg);
+		break;
+	case O_MATCH_ONLY:
+		info->cfg.mode |= XT_HASHROUTE_MATCH_ONLY;
 		break;
 	case O_SRCMASK:
 		info->cfg.srcmask = cb->val.hlen;

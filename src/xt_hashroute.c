@@ -178,9 +178,11 @@ dsthash_alloc_init(struct xt_hashroute_htable *ht,
 	 * hashtable, double check if this packet lost race.
 	 */
 	ent = dsthash_find(ht, dst);
-	if (ent != NULL) {
+	if (ent != NULL || ht->cfg.mode & XT_HASHROUTE_MATCH_ONLY) {
 		spin_unlock(&ht->lock);
-		spin_lock(&ent->lock);
+		if(ent != NULL){
+			spin_lock(&ent->lock);
+		}
 		return ent;
 	}
 
