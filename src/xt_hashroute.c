@@ -178,11 +178,9 @@ dsthash_alloc_init(struct xt_hashroute_htable *ht,
 	 * hashtable, double check if this packet lost race.
 	 */
 	ent = dsthash_find(ht, dst);
-	if (ent != NULL || ht->cfg.mode & XT_HASHROUTE_MATCH_ONLY) {
+	if (ent != NULL) {
 		spin_unlock(&ht->lock);
-		if(ent != NULL){
-			spin_lock(&ent->lock);
-		}
+		spin_lock(&ent->lock);
 		return ent;
 	}
 
@@ -586,6 +584,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 {
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
+	bool retval = true;
 
 	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0) < 0){
 		par->hotdrop = true;
@@ -595,6 +594,10 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	rcu_read_lock_bh();
 	dh = dsthash_find(hinfo, &dst);
 	if (dh == NULL) {
+		if(ht->cfg.mode & XT_HASHROUTE_MATCH_ONLY){
+			retval = false;
+			goto ret;
+		}
 		dh = dsthash_alloc_init(hinfo, &dst);
 		if (unlikely(dh == NULL)) {
 			pr_warn("hash collision or race");
@@ -618,7 +621,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	
 ret:
 	rcu_read_unlock_bh();
-	return true;
+	return retval;
 }
 
 static bool
