@@ -594,7 +594,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	rcu_read_lock_bh();
 	dh = dsthash_find(hinfo, &dst);
 	if (dh == NULL) {
-		if(hinfo->cfg.mode & XT_HASHROUTE_MATCH_ONLY){
+		if(cfg->mode & XT_HASHROUTE_MATCH_ONLY){
 			retval = false;
 			goto ret;
 		}
