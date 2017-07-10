@@ -249,8 +249,12 @@ hashroute_mt_save(const struct hashroute_cfg *cfg, const char* name, unsigned in
 		fputs(" --hashroute-mode", stdout);
 		print_mode(cfg->mode, ',');
 	}
-
+	
 	printf(" --hashroute-name %s", name);
+
+	if(cfg->mode & XT_HASHROUTE_MATCH_ONLY){
+		fputs(" --hashroute-match-only", stdout);
+	}
 
 	if (cfg->size != 0)
 		printf(" --hashroute-htable-size %u", cfg->size);
