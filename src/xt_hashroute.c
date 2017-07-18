@@ -950,7 +950,7 @@ hashroute_tg(struct sk_buff *skb,
 	struct net_device * dev;
 	int rc;
 
-	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1, info->hinfo->cfg.mode) < 0){
+	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1, info->cfg.mode) < 0){
 		pr_debug("hotdrop\n");
 		return NF_DROP;
 	}
