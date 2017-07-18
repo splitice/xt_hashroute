@@ -463,7 +463,7 @@ static void hashroute_ipv6_mask(__be32 *i, unsigned int p)
 static int
 hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 		   struct dsthash_dst *dst,
-		   const struct sk_buff *skb, unsigned int protoff, int is_target)
+		   const struct sk_buff *skb, unsigned int protoff, __u8 is_target, __u32 mode)
 {
 	__be16 _ports[2], *ports;
 	u8 nexthdr;
@@ -474,31 +474,28 @@ hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 	switch (hinfo->family) {
 	case NFPROTO_IPV4:
 		if(is_target){
-			if(hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP){
-				dst->ip.dst = maskl(ip_hdr(skb)->saddr,
+			if(mode & XT_HASHROUTE_HASH_DIP){
+				dst->ip.src = maskl(ip_hdr(skb)->saddr,
 			              hinfo->cfg.srcmask);
-			}
-			
-			if(hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP){
+			} else if(mode & XT_HASHROUTE_HASH_SIP){
 				dst->ip.src = maskl(ip_hdr(skb)->daddr,
 			              hinfo->cfg.dstmask);
 			}
 		}else{
-			if(hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP){
-				dst->ip.dst = maskl(ip_hdr(skb)->daddr,
+			if(mode & XT_HASHROUTE_HASH_DIP){
+				dst->ip.src = maskl(ip_hdr(skb)->daddr,
 			              hinfo->cfg.dstmask);
-			}
-			if(hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP){
+			} else if(mode & XT_HASHROUTE_HASH_SIP){
 				dst->ip.src = maskl(ip_hdr(skb)->saddr,
 			              hinfo->cfg.srcmask);
 			}
 		}
 			
-		if ((hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP && is_target) || (hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP && !is_target))
+		if ((mode & XT_HASHROUTE_HASH_DIP && is_target) || (mode & XT_HASHROUTE_HASH_SIP && !is_target))
 			dst->ip.src = maskl(ip_hdr(skb)->saddr,
 			              hinfo->cfg.srcmask);
 
-		if (!(hinfo->cfg.mode &
+		if (!(mode &
 		      (XT_HASHROUTE_HASH_DPT | XT_HASHROUTE_HASH_SPT)))
 			return 0;
 		nexthdr = ip_hdr(skb)->protocol;
@@ -508,18 +505,18 @@ hashroute_init_dst(const struct xt_hashroute_htable *hinfo,
 	{
 		__be16 frag_off;
 
-		if ((hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP && !is_target) || (hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP && is_target)) {
-			memcpy(&dst->ip6.dst, &ipv6_hdr(skb)->daddr,
-			       sizeof(dst->ip6.dst));
-			hashroute_ipv6_mask(dst->ip6.dst, hinfo->cfg.dstmask);
+		if ((mode & XT_HASHROUTE_HASH_DIP && !is_target) || (mode & XT_HASHROUTE_HASH_SIP && is_target)) {
+			memcpy(&dst->ip6.src, &ipv6_hdr(skb)->daddr,
+			       sizeof(dst->ip6.src));
+			hashroute_ipv6_mask(dst->ip6.src, hinfo->cfg.dstmask);
 		}
-		if ((hinfo->cfg.mode & XT_HASHROUTE_HASH_DIP && is_target) || (hinfo->cfg.mode & XT_HASHROUTE_HASH_SIP && !is_target)) {
+		if ((mode & XT_HASHROUTE_HASH_DIP && is_target) || (mode & XT_HASHROUTE_HASH_SIP && !is_target)) {
 			memcpy(&dst->ip6.src, &ipv6_hdr(skb)->saddr,
 			       sizeof(dst->ip6.src));
 			hashroute_ipv6_mask(dst->ip6.src, hinfo->cfg.srcmask);
 		}
 
-		if (!(hinfo->cfg.mode &
+		if (!(mode &
 		      (XT_HASHROUTE_HASH_DPT | XT_HASHROUTE_HASH_SPT)))
 			return 0;
 		nexthdr = ipv6_hdr(skb)->nexthdr;
@@ -586,7 +583,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	struct dsthash_dst dst;
 	bool retval = true;
 
-	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0) < 0){
+	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0, cfg->mode) < 0){
 		par->hotdrop = true;
 		return false;
 	}
@@ -953,7 +950,7 @@ hashroute_tg(struct sk_buff *skb,
 	struct net_device * dev;
 	int rc;
 
-	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1) < 0){
+	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1, info->hinfo->cfg.mode) < 0){
 		pr_debug("hotdrop\n");
 		return NF_DROP;
 	}
