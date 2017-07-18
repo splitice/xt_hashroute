@@ -209,6 +209,11 @@ hashroute_mt_print(const struct hashroute_cfg *cfg, unsigned int dmask, int revi
 		fputs(" mode", stdout);
 		print_mode(cfg->mode, '-');
 	}
+	
+	if(cfg->mode & XT_HASHROUTE_MATCH_ONLY){
+		fputs(" match-only", stdout);
+	}
+	
 	if (cfg->size != 0)
 		printf(" htable-size %u", cfg->size);
 	if (cfg->max != 0)
