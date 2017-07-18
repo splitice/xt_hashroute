@@ -603,7 +603,10 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		}
 	}
 	
-	dh_set_value(dh, skb);
+	
+	if(! (cfg->mode & XT_HASHROUTE_MATCH_ONLY) ){
+		dh_set_value(dh, skb);
+	}
 	if(unlikely(dh->dev == NULL)){
 		dh->expires = jiffies;
 	}else{
