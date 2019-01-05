@@ -942,7 +942,7 @@ static int hashroute_tg_check(const struct xt_tgchk_param *par)
 
 static unsigned int
 hashroute_tg(struct sk_buff *skb,
-				const struct xt_action_param *par)
+				struct xt_action_param *par)
 {
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
