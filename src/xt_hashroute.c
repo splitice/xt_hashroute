@@ -584,7 +584,6 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	bool retval = true;
 
 	if (hashroute_init_dst(hinfo, &dst, skb, par->thoff, 0, cfg->mode) < 0){
-		par->hotdrop = true;
 		return false;
 	}
 
@@ -597,8 +596,6 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		}
 		dh = dsthash_alloc_init(hinfo, &dst);
 		if (unlikely(dh == NULL)) {
-			pr_warn("hash collision or race");
-			par->hotdrop = true;
 			goto ret;
 		}
 	}
@@ -955,6 +952,7 @@ hashroute_tg(struct sk_buff *skb,
 
 	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1, info->cfg.mode) < 0){
 		pr_debug("hotdrop\n");
+		par->hotdrop = true;
 		return NF_DROP;
 	}
 
