@@ -226,7 +226,7 @@ dsthash_free_entry(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 	hlist_del_rcu(&ent->node);
 	call_rcu(&ent->rcu, dsthash_free_rcu);
 	ht->count--;
-	hinfo->max_reached = false;
+	ht->max_reached = false;
 }
 
 static inline void
@@ -235,7 +235,7 @@ dsthash_free_entry_bh(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 	hlist_del_rcu(&ent->node);
 	call_rcu_bh(&ent->rcu, dsthash_free_rcu);
 	ht->count--;
-	hinfo->max_reached = false;
+	ht->max_reached = false;
 }
 
 static inline void
