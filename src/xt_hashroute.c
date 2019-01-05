@@ -194,9 +194,9 @@ dsthash_alloc_init(struct xt_hashroute_htable *ht,
 
 	if (ht->cfg.max && ht->count >= ht->cfg.max) {
 		/* FIXME: do something. question is what.. */
-		if(!hinfo->max_reached) {
+		if(!ht->max_reached) {
 			net_err_ratelimited("max count of %u reached\n", ht->cfg.max);
-			hinfo->max_reached = true;
+			ht->max_reached = true;
 		}
 		ent = NULL;
 	} else {
