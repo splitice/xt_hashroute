@@ -99,6 +99,7 @@ struct xt_hashroute_htable {
 	int use;
 	u_int8_t family;
 	bool rnd_initialized;
+	bool max_reached;
 
 	struct hashroute_cfg cfg;	/* config */
 
@@ -193,7 +194,10 @@ dsthash_alloc_init(struct xt_hashroute_htable *ht,
 
 	if (ht->cfg.max && ht->count >= ht->cfg.max) {
 		/* FIXME: do something. question is what.. */
-		net_err_ratelimited("max count of %u reached\n", ht->cfg.max);
+		if(!hinfo->max_reached) {
+			net_err_ratelimited("max count of %u reached\n", ht->cfg.max);
+			hinfo->max_reached = true;
+		}
 		ent = NULL;
 	} else {
 		ent = kmem_cache_alloc(hashroute_cachep, GFP_ATOMIC);
@@ -222,6 +226,7 @@ dsthash_free_entry(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 	hlist_del_rcu(&ent->node);
 	call_rcu(&ent->rcu, dsthash_free_rcu);
 	ht->count--;
+	hinfo->max_reached = false;
 }
 
 static inline void
@@ -230,6 +235,7 @@ dsthash_free_entry_bh(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 	hlist_del_rcu(&ent->node);
 	call_rcu_bh(&ent->rcu, dsthash_free_rcu);
 	ht->count--;
+	hinfo->max_reached = false;
 }
 
 static inline void
@@ -292,6 +298,7 @@ static int htable_create(struct net *net, struct hashroute_cfg *cfg,
 	hinfo->count = 0;
 	hinfo->family = family;
 	hinfo->rnd_initialized = false;
+	hinfo->max_reached = false;
 	hinfo->name = kstrdup(name, GFP_KERNEL);
 	if (!hinfo->name) {
 		vfree(hinfo);
