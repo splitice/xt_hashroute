@@ -230,15 +230,6 @@ dsthash_free_entry(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 }
 
 static inline void
-dsthash_free_entry_bh(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
-{
-	hlist_del_rcu(&ent->node);
-	call_rcu_bh(&ent->rcu, dsthash_free_rcu);
-	ht->count--;
-	ht->max_reached = false;
-}
-
-static inline void
 dsthash_free(struct xt_hashroute_htable *ht, struct dsthash_ent *ent)
 {
 	spin_lock_bh(&ent->lock);
@@ -265,9 +256,9 @@ static int htable_create(struct net *net, struct hashroute_cfg *cfg,
 	if (cfg->size) {
 		size = cfg->size;
 	} else {
-		size = (totalram_pages << PAGE_SHIFT) / 16384 /
+		size = (totalram_pages() << PAGE_SHIFT) / 16384 /
 		       sizeof(struct list_head);
-		if (totalram_pages > 1024 * 1024 * 1024 / PAGE_SIZE)
+		if (totalram_pages() > 1024 * 1024 * 1024 / PAGE_SIZE)
 			size = 8192;
 		if (size < 16)
 			size = 16;
@@ -949,7 +940,7 @@ static int hashroute_tg_check(const struct xt_tgchk_param *par)
 
 static unsigned int
 hashroute_tg(struct sk_buff *skb,
-				struct xt_action_param *par)
+				const struct xt_action_param *par)
 {
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
@@ -958,8 +949,6 @@ hashroute_tg(struct sk_buff *skb,
 	int rc;
 
 	if (hashroute_init_dst(info->hinfo, &dst, skb, par->thoff, 1, info->cfg.mode) < 0){
-		pr_debug("hotdrop\n");
-		par->hotdrop = true;
 		return NF_DROP;
 	}
 
@@ -994,9 +983,7 @@ hashroute_tg(struct sk_buff *skb,
 	rcu_read_unlock_bh();
 	
 	// this packet should be NOTRACK'ed
-	skb->nfct = &nf_ct_untracked_get()->ct_general;
-	nf_conntrack_get(skb->nfct);
-	skb->nfctinfo = IP_CT_NEW;
+	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 	
 	skb_dst_set(skb, NULL);
 	skb->pkt_type = PACKET_OUTGOING;
@@ -1081,7 +1068,7 @@ static void __exit hashroute_mt_exit(void)
 	xt_unregister_targets(hashroute_tg_reg, ARRAY_SIZE(hashroute_tg_reg));
 	unregister_pernet_subsys(&hashroute_net_ops);
 
-	rcu_barrier_bh();
+	rcu_barrier();
 	kmem_cache_destroy(hashroute_cachep);
 }
 
