@@ -1041,7 +1041,7 @@ static int __init hashroute_mt_init(void)
 	err = xt_register_targets(hashroute_tg_reg,
 	      ARRAY_SIZE(hashroute_tg_reg));
 	if (err < 0)
-		goto err1;
+		goto err2;
 
 	err = -ENOMEM;
 	hashroute_cachep = kmem_cache_create("xt_hashroute",
@@ -1054,8 +1054,9 @@ static int __init hashroute_mt_init(void)
 	return 0;
 
 err2:
-	xt_unregister_matches(hashroute_mt_reg, ARRAY_SIZE(hashroute_mt_reg));
+	xt_unregister_targets(hashroute_tg_reg, ARRAY_SIZE(hashroute_tg_reg));
 err1:
+	xt_unregister_matches(hashroute_mt_reg, ARRAY_SIZE(hashroute_mt_reg));
 	unregister_pernet_subsys(&hashroute_net_ops);
 	return err;
 
