@@ -60,8 +60,7 @@ static inline struct hashroute_net *hashroute_pernet(struct net *net)
 }
 
 /* need to declare this at the top */
-static const struct file_operations dl_file_ops_v1;
-static const struct file_operations dl_file_ops;
+static const struct proc_ops dl_file_ops;
 
 /* hash table crap */
 struct dsthash_dst {
@@ -826,12 +825,11 @@ static int dl_proc_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static const struct file_operations dl_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = dl_proc_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release
+static const struct proc_ops dl_file_ops = {
+	.proc_open    = dl_proc_open,
+	.proc_read    = seq_read,
+	.proc_lseek  = seq_lseek,
+	.proc_release = seq_release
 };
 
 static int __net_init hashroute_proc_net_init(struct net *net)
