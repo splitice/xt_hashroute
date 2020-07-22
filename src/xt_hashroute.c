@@ -180,7 +180,6 @@ dsthash_alloc_init(struct xt_hashroute_htable *ht,
 	ent = dsthash_find(ht, dst);
 	if (ent != NULL) {
 		spin_unlock(&ht->lock);
-		spin_lock(&ent->lock);
 		return ent;
 	}
 
@@ -584,7 +583,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		return false;
 	}
 
-	rcu_read_lock_bh();
+	local_bh_disable();
 	dh = dsthash_find(hinfo, &dst);
 	if (dh == NULL) {
 		if(cfg->mode & XT_HASHROUTE_MATCH_ONLY){
@@ -614,7 +613,7 @@ hashroute_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	spin_unlock(&dh->lock);
 	
 ret:
-	rcu_read_unlock_bh();
+	local_bh_enable();
 	return retval;
 }
 
