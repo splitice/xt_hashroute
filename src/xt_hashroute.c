@@ -939,6 +939,8 @@ static unsigned int
 hashroute_tg(struct sk_buff *skb,
 				const struct xt_action_param *par)
 {
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 	struct xt_hashroute_mtinfo *info = par->targinfo;
@@ -980,6 +982,10 @@ hashroute_tg(struct sk_buff *skb,
 	rcu_read_unlock_bh();
 	
 	// this packet should be NOTRACK'ed
+	ct = nf_ct_get(skb, &ctinfo);
+	if(ct != NULL) {
+		nf_ct_put(ct);
+	}
 	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 	
 	skb_dst_set(skb, NULL);
