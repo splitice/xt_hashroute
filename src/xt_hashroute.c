@@ -10,6 +10,7 @@
  */
 //#define DEBUG 1
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/random.h>
@@ -46,6 +47,10 @@ MODULE_ALIAS("ip6t_hashroute");
 MODULE_ALIAS("xt_HASHROUTE");
 MODULE_ALIAS("ipt_HASHROUTE");
 MODULE_ALIAS("ip6t_HASHROUTE");
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,0,0)
+#define pde_data PDE_DATA
+#endif
 
 struct hashroute_net {
 	struct hlist_head	htables;
@@ -819,7 +824,7 @@ static int dl_proc_open(struct inode *inode, struct file *file)
 	if (!ret) {
 		struct seq_file *sf = file->private_data;
 
-		sf->private = PDE_DATA(inode);
+		sf->private = pde_data(inode);
 	}
 	return ret;
 }
