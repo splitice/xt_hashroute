@@ -46,7 +46,7 @@ libxt_HASHROUTE_sh.o: libxt_hashroute.c
 
 
 %.so: %_sh.o
-	gcc -shared -lxtables -o $@ $<
+	gcc -shared -o $@ $< -lxtables
 
 linstall: | libxt_hashroute.so libxt_HASHROUTE.so
 	@echo " *"
