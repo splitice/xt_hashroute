@@ -87,6 +87,9 @@ static const struct xt_option_entry hashroute_mt_opts[] = {
 };
 #undef s
 
+#ifndef _init
+#define _init __attribute__((constructor)) _INIT
+#endif
 static void hashroute_mt4_init(struct xt_entry_target *match)
 {
 	struct xt_hashroute_mtinfo *info = (void *)match->data;
